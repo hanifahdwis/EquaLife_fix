@@ -20,6 +20,10 @@
         <activity android:name=".WeightActivity" />
         <activity android:name=".DietActivity" />
         <activity android:name=".FinishActivity" />
+        <activity android:name=".LoginActivity" />
+        <activity android:name=".RegisterActivity" />
+        <activity android:name=".SignupActivity" />
+
 
 
         <!-- Halaman utama (Login) -->

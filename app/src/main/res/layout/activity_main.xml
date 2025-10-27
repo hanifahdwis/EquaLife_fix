@@ -73,6 +73,7 @@
 
         <!-- Sign Up Text -->
         <TextView
+            android:id="@+id/tvSignUp"
             android:text="Don’t have an account? Sign Up"
             android:textSize="13sp"
             android:textColor="#000000"

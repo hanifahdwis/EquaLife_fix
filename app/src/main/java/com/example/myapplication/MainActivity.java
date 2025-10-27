@@ -2,28 +2,54 @@ package com.example.myapplication;
 
 import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
-import android.content.Intent;
-import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.Toast;
+import android.content.Intent;
 
 public class MainActivity extends AppCompatActivity {
 
+    EditText etUsername, etPassword;
     Button btnLogin;
+    TextView tvSignUp;
+    DatabaseHelper db;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        btnLogin = findViewById(R.id.btnLogin);
+        db = new DatabaseHelper(this);
 
-        btnLogin.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // pindah ke halaman intro
-                Intent intent = new Intent(MainActivity.this, IntroActivity.class);
-                startActivity(intent);
+        etUsername = findViewById(R.id.etUsername);
+        etPassword = findViewById(R.id.etPassword);
+        btnLogin = findViewById(R.id.btnLogin);
+        tvSignUp = findViewById(R.id.tvSignUp);
+
+        // Tombol Login
+        btnLogin.setOnClickListener(v -> {
+            String email = etUsername.getText().toString().trim();
+            String password = etPassword.getText().toString().trim();
+
+            if (email.isEmpty() || password.isEmpty()) {
+                Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show();
+                return;
             }
+
+            boolean valid = db.checkUser(email, password);
+            if (valid) {
+                Toast.makeText(this, "Login successful", Toast.LENGTH_SHORT).show();
+                startActivity(new Intent(MainActivity.this, IntroActivity.class));
+                finish();
+            } else {
+                Toast.makeText(this, "Invalid email or password", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // Klik "Don't have an account? Sign Up"
+        tvSignUp.setOnClickListener(v -> {
+            startActivity(new Intent(MainActivity.this, SignupActivity.class));
         });
     }
 }
