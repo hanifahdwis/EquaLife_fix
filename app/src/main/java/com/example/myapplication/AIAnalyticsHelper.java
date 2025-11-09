@@ -4,12 +4,17 @@ import android.content.Context;
 import android.util.Log;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+
+// Hapus import POJO Gemini (GeminiRequest, Content, Part, dll.)
+// Kita akan buat file baru: ApiRequest, ApiResponse, Message, Choice
+
 import java.lang.reflect.Type;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -24,15 +29,14 @@ public class AIAnalyticsHelper {
     public AIAnalyticsHelper(Context context, DatabaseHelper db, String userEmail) {
         this.db = db;
         this.userEmail = userEmail;
-        // Ambil ApiService dari RetrofitClient versi Gemini
-        this.apiService = RetrofitClient.getApiService();
+        this.apiService = RetrofitClient.getApiService(); // Ini akan mengambil RetrofitClient versi Groq
         this.gson = new Gson();
     }
 
-    /**
-     * Meminta AI untuk membuat jadwal makan (Sarapan, Makan Siang, Makan Malam)
-     * yang disesuaikan dengan profil dan jadwal sibuk pengguna.
-     */
+    // Fungsi adjustDiet, adjustSleep, dan adjustHydration tidak perlu diubah
+    // Salin-tempel saja 3 fungsi itu dari file lamamu.
+    // ...
+    // --- FUNGSI 1: ADJUST DIET ---
     public void adjustDiet(AIResponseListener listener) {
         UserProfile profile = db.getUserProfile(userEmail);
         List<Task> busySchedule = db.getTasksForUser(userEmail);
@@ -61,10 +65,7 @@ public class AIAnalyticsHelper {
         callApi(systemPrompt, userPrompt, "Diet", listener);
     }
 
-    /**
-     * Meminta AI untuk membuat satu jadwal tidur ideal (8 jam)
-     * yang disesuaikan dengan profil dan jadwal sibuk pengguna.
-     */
+    // --- FUNGSI 2: ADJUST SLEEP ---
     public void adjustSleep(AIResponseListener listener) {
         UserProfile profile = db.getUserProfile(userEmail);
         List<Task> busySchedule = db.getTasksForUser(userEmail);
@@ -94,10 +95,7 @@ public class AIAnalyticsHelper {
         callApi(systemPrompt, userPrompt, "Sleep", listener);
     }
 
-    /**
-     * Meminta AI untuk membuat beberapa jadwal pengingat minum
-     * yang disesuaikan dengan jadwal sibuk pengguna.
-     */
+    // --- FUNGSI 3: ADJUST HYDRATION ---
     public void adjustHydration(AIResponseListener listener) {
         UserProfile profile = db.getUserProfile(userEmail);
         List<Task> busySchedule = db.getTasksForUser(userEmail);
@@ -126,43 +124,30 @@ public class AIAnalyticsHelper {
         callApi(systemPrompt, userPrompt, "Hydration", listener);
     }
 
+    // ...
 
     /**
-     * Fungsi inti yang memanggil API Gemini.
-     * Menggunakan struktur "multi-turn chat" untuk memberi instruksi sistem.
+     * Fungsi inti yang memanggil API Groq (Format OpenAI/Senopati).
      */
     private void callApi(String systemPrompt, String userPrompt, String logTag, AIResponseListener listener) {
 
-        // --- Struktur Request untuk GEMINI ---
-        List<Content> contents = new ArrayList<>();
+        // --- Struktur Request untuk Groq ---
+        List<Message> messages = new ArrayList<>();
+        messages.add(new Message("system", systemPrompt));
+        messages.add(new Message("user", userPrompt));
 
-        // 1. Masukkan instruksi sistem sebagai giliran "user"
-        List<Part> systemParts = new ArrayList<>();
-        systemParts.add(new Part(systemPrompt));
-        contents.add(new Content(systemParts, "user"));
-
-        // 2. Masukkan balasan "model" palsu untuk 'memaksa' AI mematuhi instruksi
-        List<Part> modelParts = new ArrayList<>();
-        modelParts.add(new Part("OK. Saya adalah asisten kesehatan dan akan membalas HANYA dengan JSON Array."));
-        contents.add(new Content(modelParts, "model"));
-
-        // 3. Masukkan prompt user yang sebenarnya sebagai giliran "user"
-        List<Part> userParts = new ArrayList<>();
-        userParts.add(new Part(userPrompt));
-        contents.add(new Content(userParts, "user"));
-
-        // Buat request body Gemini
-        GeminiRequest request = new GeminiRequest(contents);
+        // Model LLaMA 3 dari Groq, sangat cepat.
+        ApiRequest request = new ApiRequest("llama3-8b-8192", messages);
         // --- Batas Perubahan ---
 
-        // Panggil ApiService (versi Gemini)
-        apiService.getChatCompletion(request, RetrofitClient.API_KEY).enqueue(new Callback<GeminiResponse>() {
+        // Panggil ApiService (versi Groq)
+        apiService.getChatCompletion(request, RetrofitClient.API_KEY).enqueue(new Callback<ApiResponse>() {
             @Override
-            public void onResponse(Call<GeminiResponse> call, Response<GeminiResponse> response) {
-                if (response.isSuccessful() && response.body() != null) {
+            public void onResponse(Call<ApiResponse> call, Response<ApiResponse> response) {
+                if (response.isSuccessful() && response.body() != null && response.body().choices != null && !response.body().choices.isEmpty()) {
 
-                    // Ambil teks jawaban dari helper di GeminiResponse
-                    String aiResponseContent = response.body().getResponseText();
+                    // Ambil teks jawaban
+                    String aiResponseContent = response.body().choices.get(0).message.content;
 
                     if (aiResponseContent == null) {
                         Log.w("AIAnalyticsHelper", "AI response content is null (" + logTag + ")");
@@ -191,7 +176,6 @@ public class AIAnalyticsHelper {
                         // Simpan setiap tugas dari AI ke database
                         for (Task task : aiTasks) {
                             if (task.getTaskName() == null || task.getDate() == null || task.getStartTime() == null || task.getEndTime() == null) {
-                                // Lewati task yang datanya tidak lengkap
                                 Log.w("AIAnalyticsHelper", "AI task skipped due to null fields: " + gson.toJson(task));
                                 continue;
                             }
@@ -216,7 +200,7 @@ public class AIAnalyticsHelper {
             }
 
             @Override
-            public void onFailure(Call<GeminiResponse> call, Throwable t) {
+            public void onFailure(Call<ApiResponse> call, Throwable t) {
                 // Error jaringan (tidak ada internet, timeout)
                 Log.e("AIAnalyticsHelper", "Network Error (" + logTag + ")", t);
                 listener.onError("Error Jaringan: " + t.getMessage());
